@@ -20,6 +20,7 @@
 	#undef min
 #else
 	#include <stddef.h>
+	#include <x86intrin.h>
 	#if defined(__GNUC__) || defined(__clang__)
 		// GNU C / Clang supports forcing inline, just via a different syntax.
         // disable this on MinGW compiler
@@ -35,10 +36,10 @@
 	#define _BitScanForward(dst, x) (*(dst) = __builtin_ctz(x))
 	#define _BitScanReverse(dst, x) (*(dst) = (__builtin_clz(x) ^ 31))
 
-    // disable this on MinGW compiler
-	static inline uint32_t _rotl(uint32_t x, int n) {
-	  return (((x) << (n)) | ((x) >> (32-(n))));
-	}
+    // // disable this on MinGW compiler
+	// static inline uint32_t _rotl(uint32_t x, int n) {
+	//   return (((x) << (n)) | ((x) >> (32-(n))));
+	// }
 #endif
 
 // Windows has this enabled implicitly (and uses different headers), GNU C compilers generally require passing an additional flag, so check for that first.

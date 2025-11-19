@@ -7,7 +7,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/CMake")
 
 file(REMOVE_RECURSE "${CMAKE_BINARY_DIR}/bin/CMake")
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 if(WIN32)
    # disable on win build
    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")

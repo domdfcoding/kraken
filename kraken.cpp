@@ -17,9 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "kraken.h"
-#include "compress.h"
-#include "compr_kraken.h"
-#include "compr_match_finder.h"
+
 
 // Header in front of each 256k block
 typedef struct KrakenHeader {
@@ -139,17 +137,17 @@ void FreeAligned(void *p) {
 	free(((void**)p)[-1]);
 }
 
-//uint32 BSR(uint32 x) {
-//	unsigned long index;
-//	_BitScanReverse(&index, x);
-//	return index;
-//}
-//
-//uint32 BSF(uint32 x) {
-//	unsigned long index;
-//	_BitScanForward(&index, x);
-//	return index;
-//}
+uint32 BSR(uint32 x) {
+	unsigned long index;
+	_BitScanReverse(&index, x);
+	return index;
+}
+
+uint32 BSF(uint32 x) {
+	unsigned long index;
+	_BitScanForward(&index, x);
+	return index;
+}
 
 // Read more bytes to make sure we always have at least 24 bits in |bits|.
 void BitReader_Refill(BitReader *bits) {
@@ -2853,34 +2851,3 @@ int arg_compressor = kCompressor_Kraken, arg_level = 5;
 char arg_direction;
 char *verifyfolder;
 
-
-EXPORT int Kraken_Compress(uint8* src, size_t src_len, byte* dst, int level) {
-
-    int outbytes = CompressBlock_Kraken(src, dst, src_len, level, 0, 0, 0);
-
-    if (outbytes < 0) error("compress failed");
-
-    return outbytes;
-}
-
-
-
-//bool Verify(const char *filename, uint8 *output, int outbytes, const char *curfile) {
-//	int test_size;
-//	byte *test = load_file(filename, &test_size);
-//	if (!test) {
-//		fprintf(stderr, "file open error: %s\n", filename);
-//		return false;
-//	}
-//	if (test_size != outbytes) {
-//		fprintf(stderr, "%s: ERROR: File size difference: %d vs %d\n", filename, outbytes, test_size);
-//		return false;
-//	}
-//	for (int i = 0; i != test_size; i++) {
-//		if (test[i] != output[i]) {
-//			fprintf(stderr, "%s: ERROR: File difference at 0x%x. Was %d instead of %d\n", curfile, i, output[i], test[i]);
-//			return false;
-//		}
-//	}
-//	return true;
-//}

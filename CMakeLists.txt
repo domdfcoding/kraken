@@ -48,10 +48,6 @@ endif()
 include_directories(.)
 
 set(SOURCE
-        bits_rev_table.h
-        log_lookup.h
-        qsort.h
-        compr_util.h
         kraken.h
         kraken.cpp
         )

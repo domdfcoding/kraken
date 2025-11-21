@@ -88,7 +88,7 @@ jobs:
       run: ctest --build-config ${{ matrix.build_type }}
 
     - name: Upload a Build Artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.target }}_${{ matrix.os }}_${{ matrix.cpp_compiler }}
         path: ${{ steps.strings.outputs.build-output-dir }}/bin/CMake

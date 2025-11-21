@@ -1,5 +1,5 @@
 /*
-=== Kraken Decompressor for Windows ===
+=== Kraken Decompressor ===
 Copyright (C) 2016, Powzix
 
 This program is free software: you can redistribute it and/or modify

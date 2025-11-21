@@ -18,7 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "kraken.h"
 
-
 // Header in front of each 256k block
 typedef struct KrakenHeader {
 	// Type of decoder used, 6 means kraken
@@ -105,7 +104,7 @@ typedef struct HuffReader {
 	// Array to hold the output of the huffman read array operation
 	byte *output, *output_end;
 	// We decode three parallel streams, two forwards, |src| and |src_mid|
-	// while |src_end| is decoded backwards. 
+	// while |src_end| is decoded backwards.
 	const byte *src, *src_mid, *src_end, *src_mid_org;
 	int src_bitpos, src_mid_bitpos, src_end_bitpos;
 	uint32 src_bits, src_mid_bits, src_end_bits;
@@ -114,28 +113,27 @@ typedef struct HuffReader {
 inline size_t Max(size_t a, size_t b) { return a > b ? a : b; }
 inline size_t Min(size_t a, size_t b) { return a < b ? a : b; }
 
-#define ALIGN_POINTER(p, align) ((uint8*)(((uintptr_t)(p) + (align - 1)) & ~(align - 1)))
+#define ALIGN_POINTER(p, align) ((uint8 *)(((uintptr_t)(p) + (align - 1)) & ~(align - 1)))
 
 struct HuffRange;
 
-int Kraken_DecodeBytes(byte **output, const byte *src, const byte *src_end, int *decoded_size, size_t output_size, bool force_memmove, uint8 *scratch, uint8 *scratch_end);
+int Kraken_DecodeBytes(byte **output, const byte *src, const byte *src_end, int *decoded_size, size_t output_size,
+					   bool force_memmove, uint8 *scratch, uint8 *scratch_end);
 int Kraken_GetBlockSize(const uint8 *src, const uint8 *src_end, int *dest_size, int dest_capacity);
 int Huff_ConvertToRanges(HuffRange *range, int num_symbols, int P, const uint8 *symlen, BitReader *bits);
 
 // Allocate memory with a specific alignment
 void *MallocAligned(size_t size, size_t alignment) {
-	void *x = malloc(size + (alignment - 1) + sizeof(void*)), *x_org = x;
+	void *x = malloc(size + (alignment - 1) + sizeof(void *)), *x_org = x;
 	if (x) {
-		x = (void*)(((intptr_t)x + alignment - 1 + sizeof(void*)) & ~(alignment - 1));
-		((void**)x)[-1] = x_org;
+		x = (void *)(((intptr_t)x + alignment - 1 + sizeof(void *)) & ~(alignment - 1));
+		((void **)x)[-1] = x_org;
 	}
 	return x;
 }
 
 // Free memory allocated through |MallocAligned|
-void FreeAligned(void *p) {
-	free(((void**)p)[-1]);
-}
+void FreeAligned(void *p) { free(((void **)p)[-1]); }
 
 uint32 BSR(uint32 x) {
 	unsigned long index;
@@ -188,7 +186,6 @@ int BitReader_ReadBitNoRefill(BitReader *bits) {
 	return r;
 }
 
-
 // Read |n| bits without refilling.
 int BitReader_ReadBitsNoRefill(BitReader *bits, int n) {
 	int r = (bits->bits >> (32 - n));
@@ -209,8 +206,7 @@ uint32 BitReader_ReadMoreThan24Bits(BitReader *bits, int n) {
 	uint32 rv;
 	if (n <= 24) {
 		rv = BitReader_ReadBitsNoRefillZero(bits, n);
-	}
-	else {
+	} else {
 		rv = BitReader_ReadBitsNoRefill(bits, 24) << (n - 24);
 		BitReader_Refill(bits);
 		rv += BitReader_ReadBitsNoRefill(bits, n - 24);
@@ -223,8 +219,7 @@ uint32 BitReader_ReadMoreThan24BitsB(BitReader *bits, int n) {
 	uint32 rv;
 	if (n <= 24) {
 		rv = BitReader_ReadBitsNoRefillZero(bits, n);
-	}
-	else {
+	} else {
 		rv = BitReader_ReadBitsNoRefill(bits, 24) << (n - 24);
 		BitReader_RefillBackwards(bits);
 		rv += BitReader_ReadBitsNoRefill(bits, n - 24);
@@ -242,8 +237,7 @@ int BitReader_ReadGamma(BitReader *bits) {
 	if (bits->bits != 0) {
 		_BitScanReverse(&bitresult, bits->bits);
 		n = 31 - bitresult;
-	}
-	else {
+	} else {
 		n = 32;
 	}
 	n = 2 * n + 2;
@@ -286,8 +280,7 @@ uint32 BitReader_ReadDistance(BitReader *bits, uint32 v) {
 		m = (2 << n) - 1;
 		bits->bits = w & ~m;
 		rv = ((w & m) << 4) + (v & 0xF) - 248;
-	}
-	else {
+	} else {
 		n = v - 0xF0 + 4;
 		w = _rotl(bits->bits | 1, n);
 		bits->bitpos += n;
@@ -303,7 +296,6 @@ uint32 BitReader_ReadDistance(BitReader *bits, uint32 v) {
 	return rv;
 }
 
-
 // Reads a offset code parametrized by |v|, backwards.
 uint32 BitReader_ReadDistanceB(BitReader *bits, uint32 v) {
 	uint32 w, m, n, rv;
@@ -314,8 +306,7 @@ uint32 BitReader_ReadDistanceB(BitReader *bits, uint32 v) {
 		m = (2 << n) - 1;
 		bits->bits = w & ~m;
 		rv = ((w & m) << 4) + (v & 0xF) - 248;
-	}
-	else {
+	} else {
 		n = v - 0xF0 + 4;
 		w = _rotl(bits->bits | 1, n);
 		bits->bitpos += n;
@@ -338,7 +329,8 @@ bool BitReader_ReadLength(BitReader *bits, uint32 *v) {
 	uint32 rv;
 	_BitScanReverse(&bitresult, bits->bits);
 	n = 31 - bitresult;
-	if (n > 12) return false;
+	if (n > 12)
+		return false;
 	bits->bitpos += n;
 	bits->bits <<= n;
 	BitReader_Refill(bits);
@@ -358,7 +350,8 @@ bool BitReader_ReadLengthB(BitReader *bits, uint32 *v) {
 	uint32 rv;
 	_BitScanReverse(&bitresult, bits->bits);
 	n = 31 - bitresult;
-	if (n > 12) return false;
+	if (n > 12)
+		return false;
 	bits->bitpos += n;
 	bits->bits <<= n;
 	BitReader_RefillBackwards(bits);
@@ -376,47 +369,49 @@ int Log2RoundUp(uint32 v) {
 		unsigned long idx;
 		_BitScanReverse(&idx, v - 1);
 		return idx + 1;
-	}
-	else {
+	} else {
 		return 0;
 	}
 }
 
-#define ALIGN_16(x) (((x)+15)&~15)
-#define COPY_64(d, s) {*(uint64*)(d) = *(uint64*)(s); }
-#define COPY_64_BYTES(d, s) {                                                 \
-        _mm_storeu_si128((__m128i*)d + 0, _mm_loadu_si128((__m128i*)s + 0));  \
-        _mm_storeu_si128((__m128i*)d + 1, _mm_loadu_si128((__m128i*)s + 1));  \
-        _mm_storeu_si128((__m128i*)d + 2, _mm_loadu_si128((__m128i*)s + 2));  \
-        _mm_storeu_si128((__m128i*)d + 3, _mm_loadu_si128((__m128i*)s + 3));  \
-}
+#define ALIGN_16(x) (((x) + 15) & ~15)
+#define COPY_64(d, s)                                                                                                  \
+	{ *(uint64 *)(d) = *(uint64 *)(s); }
+#define COPY_64_BYTES(d, s)                                                                                            \
+	{                                                                                                                  \
+		_mm_storeu_si128((__m128i *)d + 0, _mm_loadu_si128((__m128i *)s + 0));                                         \
+		_mm_storeu_si128((__m128i *)d + 1, _mm_loadu_si128((__m128i *)s + 1));                                         \
+		_mm_storeu_si128((__m128i *)d + 2, _mm_loadu_si128((__m128i *)s + 2));                                         \
+		_mm_storeu_si128((__m128i *)d + 3, _mm_loadu_si128((__m128i *)s + 3));                                         \
+	}
 
-#define COPY_64_ADD(d, s, t) _mm_storel_epi64((__m128i *)(d), _mm_add_epi8(_mm_loadl_epi64((__m128i *)(s)), _mm_loadl_epi64((__m128i *)(t))))
+#define COPY_64_ADD(d, s, t)                                                                                           \
+	_mm_storel_epi64((__m128i *)(d), _mm_add_epi8(_mm_loadl_epi64((__m128i *)(s)), _mm_loadl_epi64((__m128i *)(t))))
 
 KrakenDecoder *Kraken_Create() {
 	size_t scratch_size = 0x6C000;
 	size_t memory_needed = sizeof(KrakenDecoder) + scratch_size;
-	KrakenDecoder *dec = (KrakenDecoder*)MallocAligned(memory_needed, 16);
+	KrakenDecoder *dec = (KrakenDecoder *)MallocAligned(memory_needed, 16);
 	memset(dec, 0, sizeof(KrakenDecoder));
 	dec->scratch_size = scratch_size;
-	dec->scratch = (byte*)(dec + 1);
+	dec->scratch = (byte *)(dec + 1);
 	return dec;
 }
 
-void Kraken_Destroy(KrakenDecoder *kraken) {
-	FreeAligned(kraken);
-}
+void Kraken_Destroy(KrakenDecoder *kraken) { FreeAligned(kraken); }
 
 const byte *Kraken_ParseHeader(KrakenHeader *hdr, const byte *p) {
 	int b = p[0];
 	if ((b & 0xF) == 0xC) {
-		if (((b >> 4) & 3) != 0) return NULL;
+		if (((b >> 4) & 3) != 0)
+			return NULL;
 		hdr->restart_decoder = (b >> 7) & 1;
 		hdr->uncompressed = (b >> 6) & 1;
 		b = p[1];
 		hdr->decoder_type = b & 0x7F;
 		hdr->use_checksums = !!(b >> 7);
-		if (hdr->decoder_type != 6 && hdr->decoder_type != 10 && hdr->decoder_type != 5 && hdr->decoder_type != 11 && hdr->decoder_type != 12)
+		if (hdr->decoder_type != 6 && hdr->decoder_type != 10 && hdr->decoder_type != 5 && hdr->decoder_type != 11 &&
+			hdr->decoder_type != 12)
 			return NULL;
 		return p + 2;
 	}
@@ -434,8 +429,7 @@ const byte *Kraken_ParseQuantumHeader(KrakenQuantumHeader *hdr, const byte *p, b
 		if (use_checksum) {
 			hdr->checksum = (p[3] << 16) | (p[4] << 8) | p[5];
 			return p + 6;
-		}
-		else {
+		} else {
 			return p + 3;
 		}
 	}
@@ -448,11 +442,10 @@ const byte *Kraken_ParseQuantumHeader(KrakenQuantumHeader *hdr, const byte *p, b
 		return p + 4;
 	}
 	return NULL;
-
 }
 
 const byte *LZNA_ParseWholeMatchInfo(const byte *p, uint32 *dist) {
-	uint32 v = _byteswap_ushort(*(uint16*)p);
+	uint32 v = _byteswap_ushort(*(uint16 *)p);
 
 	if (v < 0x8000) {
 		uint32 x = 0, b, pos = 0;
@@ -463,13 +456,11 @@ const byte *LZNA_ParseWholeMatchInfo(const byte *p, uint32 *dist) {
 				break;
 			x += (b + 0x80) << pos;
 			pos += 7;
-
 		}
 		x += (b - 128) << pos;
 		*dist = 0x8000 + v + (x << 15) + 1;
 		return p + 2;
-	}
-	else {
+	} else {
 		*dist = v - 0x8000 + 1;
 		return p + 2;
 	}
@@ -485,8 +476,7 @@ const byte *LZNA_ParseQuantumHeader(KrakenQuantumHeader *hdr, const byte *p, boo
 		if (use_checksum) {
 			hdr->checksum = (p[2] << 16) | (p[3] << 8) | p[4];
 			return p + 5;
-		}
-		else {
+		} else {
 			return p + 2;
 		}
 	}
@@ -511,7 +501,6 @@ const byte *LZNA_ParseQuantumHeader(KrakenQuantumHeader *hdr, const byte *p, boo
 	return NULL;
 }
 
-
 uint32 Kraken_GetCrc(const byte *p, size_t p_size) {
 	// TODO: implement
 	return 0;
@@ -520,22 +509,21 @@ uint32 Kraken_GetCrc(const byte *p, size_t p_size) {
 // Rearranges elements in the input array so that bits in the index
 // get flipped.
 static void ReverseBitsArray2048(const byte *input, byte *output) {
-	static const uint8 offsets[32] = {
-		0,    0x80, 0x40, 0xC0, 0x20, 0xA0, 0x60, 0xE0, 0x10, 0x90, 0x50, 0xD0, 0x30, 0xB0, 0x70, 0xF0,
-		0x08, 0x88, 0x48, 0xC8, 0x28, 0xA8, 0x68, 0xE8, 0x18, 0x98, 0x58, 0xD8, 0x38, 0xB8, 0x78, 0xF8
-	};
+	static const uint8 offsets[32] = {0,	0x80, 0x40, 0xC0, 0x20, 0xA0, 0x60, 0xE0, 0x10, 0x90, 0x50,
+									  0xD0, 0x30, 0xB0, 0x70, 0xF0, 0x08, 0x88, 0x48, 0xC8, 0x28, 0xA8,
+									  0x68, 0xE8, 0x18, 0x98, 0x58, 0xD8, 0x38, 0xB8, 0x78, 0xF8};
 	__m128i t0, t1, t2, t3, s0, s1, s2, s3;
 	int i, j;
 	for (i = 0; i != 32; i++) {
 		j = offsets[i];
 		t0 = _mm_unpacklo_epi8(_mm_loadl_epi64((const __m128i *)&input[j]),
-			_mm_loadl_epi64((const __m128i *)&input[j + 256]));
+							   _mm_loadl_epi64((const __m128i *)&input[j + 256]));
 		t1 = _mm_unpacklo_epi8(_mm_loadl_epi64((const __m128i *)&input[j + 512]),
-			_mm_loadl_epi64((const __m128i *)&input[j + 768]));
+							   _mm_loadl_epi64((const __m128i *)&input[j + 768]));
 		t2 = _mm_unpacklo_epi8(_mm_loadl_epi64((const __m128i *)&input[j + 1024]),
-			_mm_loadl_epi64((const __m128i *)&input[j + 1280]));
+							   _mm_loadl_epi64((const __m128i *)&input[j + 1280]));
 		t3 = _mm_unpacklo_epi8(_mm_loadl_epi64((const __m128i *)&input[j + 1536]),
-			_mm_loadl_epi64((const __m128i *)&input[j + 1792]));
+							   _mm_loadl_epi64((const __m128i *)&input[j + 1792]));
 
 		s0 = _mm_unpacklo_epi8(t0, t1);
 		s1 = _mm_unpacklo_epi8(t2, t3);
@@ -548,13 +536,13 @@ static void ReverseBitsArray2048(const byte *input, byte *output) {
 		t3 = _mm_unpackhi_epi8(s2, s3);
 
 		_mm_storel_epi64((__m128i *)&output[0], t0);
-		_mm_storeh_pi((__m64*)&output[1024], _mm_castsi128_ps(t0));
+		_mm_storeh_pi((__m64 *)&output[1024], _mm_castsi128_ps(t0));
 		_mm_storel_epi64((__m128i *)&output[256], t1);
-		_mm_storeh_pi((__m64*)&output[1280], _mm_castsi128_ps(t1));
+		_mm_storeh_pi((__m64 *)&output[1280], _mm_castsi128_ps(t1));
 		_mm_storel_epi64((__m128i *)&output[512], t2);
-		_mm_storeh_pi((__m64*)&output[1536], _mm_castsi128_ps(t2));
+		_mm_storeh_pi((__m64 *)&output[1536], _mm_castsi128_ps(t2));
 		_mm_storel_epi64((__m128i *)&output[768], t3);
-		_mm_storeh_pi((__m64*)&output[1792], _mm_castsi128_ps(t3));
+		_mm_storeh_pi((__m64 *)&output[1792], _mm_castsi128_ps(t3));
 		output += 8;
 	}
 }
@@ -585,13 +573,13 @@ bool Kraken_DecodeBytesCore(HuffReader *hr, HuffRevLut *lut) {
 		src_end -= 4;
 
 		while (dst < dst_end && src <= src_mid && src_mid <= src_end) {
-			src_bits |= *(uint32*)src << src_bitpos;
+			src_bits |= *(uint32 *)src << src_bitpos;
 			src += (31 - src_bitpos) >> 3;
 
-			src_end_bits |= _byteswap_ulong(*(uint32*)src_end) << src_end_bitpos;
+			src_end_bits |= _byteswap_ulong(*(uint32 *)src_end) << src_end_bitpos;
 			src_end -= (31 - src_end_bitpos) >> 3;
 
-			src_mid_bits |= *(uint32*)src_mid << src_mid_bitpos;
+			src_mid_bits |= *(uint32 *)src_mid << src_mid_bitpos;
 			src_mid += (31 - src_mid_bitpos) >> 3;
 
 			src_bitpos |= 0x18;
@@ -653,8 +641,7 @@ bool Kraken_DecodeBytesCore(HuffReader *hr, HuffRevLut *lut) {
 		if (src_mid - src <= 1) {
 			if (src_mid - src == 1)
 				src_bits |= *src << src_bitpos;
-		}
-		else {
+		} else {
 			src_bits |= *(uint16 *)src << src_bitpos;
 		}
 		k = src_bits & 0x7FF;
@@ -671,11 +658,10 @@ bool Kraken_DecodeBytesCore(HuffReader *hr, HuffRevLut *lut) {
 					src_end_bits |= *src_mid << src_end_bitpos;
 					src_mid_bits |= *src_mid << src_mid_bitpos;
 				}
-			}
-			else {
-				unsigned int v = *(uint16*)(src_end - 2);
+			} else {
+				unsigned int v = *(uint16 *)(src_end - 2);
 				src_end_bits |= (((v >> 8) | (v << 8)) & 0xffff) << src_end_bitpos;
-				src_mid_bits |= *(uint16*)src_mid << src_mid_bitpos;
+				src_mid_bits |= *(uint16 *)src_mid << src_mid_bitpos;
 			}
 			n = lut->bits2len[src_end_bits & 0x7FF];
 			*dst++ = lut->bits2sym[src_end_bits & 0x7FF];
@@ -742,16 +728,14 @@ int Huff_ReadCodeLengthsOld(BitReader *bits, uint8 *syms, uint32 *code_prefix) {
 			} while (--n);
 		} while (sym != 256);
 		return (sym == 256) && (num_symbols >= 2) ? num_symbols : -1;
-	}
-	else {
+	} else {
 		// Sparse symbol encoding
 		int num_symbols = BitReader_ReadBitsNoRefill(bits, 8);
 		if (num_symbols == 0)
 			return -1;
 		if (num_symbols == 1) {
 			syms[0] = BitReader_ReadBitsNoRefill(bits, 8);
-		}
-		else {
+		} else {
 			int codelen_bits = BitReader_ReadBitsNoRefill(bits, 3);
 			if (codelen_bits > 4)
 				return -1;
@@ -790,8 +774,7 @@ int BitReader_ReadFluff(BitReader *bits, int num_symbols) {
 		bits->bits <<= y;
 		bits->bitpos += y;
 		return v - z;
-	}
-	else {
+	} else {
 		bits->bits <<= (y - 1);
 		bits->bitpos += (y - 1);
 		return (v >> 1);
@@ -804,51 +787,46 @@ struct BitReader2 {
 };
 
 static const uint32 kRiceCodeBits2Value[256] = {
-	0x80000000, 0x00000007, 0x10000006, 0x00000006, 0x20000005, 0x00000105, 0x10000005, 0x00000005,
-	0x30000004, 0x00000204, 0x10000104, 0x00000104, 0x20000004, 0x00010004, 0x10000004, 0x00000004,
-	0x40000003, 0x00000303, 0x10000203, 0x00000203, 0x20000103, 0x00010103, 0x10000103, 0x00000103,
-	0x30000003, 0x00020003, 0x10010003, 0x00010003, 0x20000003, 0x01000003, 0x10000003, 0x00000003,
-	0x50000002, 0x00000402, 0x10000302, 0x00000302, 0x20000202, 0x00010202, 0x10000202, 0x00000202,
-	0x30000102, 0x00020102, 0x10010102, 0x00010102, 0x20000102, 0x01000102, 0x10000102, 0x00000102,
-	0x40000002, 0x00030002, 0x10020002, 0x00020002, 0x20010002, 0x01010002, 0x10010002, 0x00010002,
-	0x30000002, 0x02000002, 0x11000002, 0x01000002, 0x20000002, 0x00000012, 0x10000002, 0x00000002,
-	0x60000001, 0x00000501, 0x10000401, 0x00000401, 0x20000301, 0x00010301, 0x10000301, 0x00000301,
-	0x30000201, 0x00020201, 0x10010201, 0x00010201, 0x20000201, 0x01000201, 0x10000201, 0x00000201,
-	0x40000101, 0x00030101, 0x10020101, 0x00020101, 0x20010101, 0x01010101, 0x10010101, 0x00010101,
-	0x30000101, 0x02000101, 0x11000101, 0x01000101, 0x20000101, 0x00000111, 0x10000101, 0x00000101,
-	0x50000001, 0x00040001, 0x10030001, 0x00030001, 0x20020001, 0x01020001, 0x10020001, 0x00020001,
-	0x30010001, 0x02010001, 0x11010001, 0x01010001, 0x20010001, 0x00010011, 0x10010001, 0x00010001,
-	0x40000001, 0x03000001, 0x12000001, 0x02000001, 0x21000001, 0x01000011, 0x11000001, 0x01000001,
-	0x30000001, 0x00000021, 0x10000011, 0x00000011, 0x20000001, 0x00001001, 0x10000001, 0x00000001,
-	0x70000000, 0x00000600, 0x10000500, 0x00000500, 0x20000400, 0x00010400, 0x10000400, 0x00000400,
-	0x30000300, 0x00020300, 0x10010300, 0x00010300, 0x20000300, 0x01000300, 0x10000300, 0x00000300,
-	0x40000200, 0x00030200, 0x10020200, 0x00020200, 0x20010200, 0x01010200, 0x10010200, 0x00010200,
-	0x30000200, 0x02000200, 0x11000200, 0x01000200, 0x20000200, 0x00000210, 0x10000200, 0x00000200,
-	0x50000100, 0x00040100, 0x10030100, 0x00030100, 0x20020100, 0x01020100, 0x10020100, 0x00020100,
-	0x30010100, 0x02010100, 0x11010100, 0x01010100, 0x20010100, 0x00010110, 0x10010100, 0x00010100,
-	0x40000100, 0x03000100, 0x12000100, 0x02000100, 0x21000100, 0x01000110, 0x11000100, 0x01000100,
-	0x30000100, 0x00000120, 0x10000110, 0x00000110, 0x20000100, 0x00001100, 0x10000100, 0x00000100,
-	0x60000000, 0x00050000, 0x10040000, 0x00040000, 0x20030000, 0x01030000, 0x10030000, 0x00030000,
-	0x30020000, 0x02020000, 0x11020000, 0x01020000, 0x20020000, 0x00020010, 0x10020000, 0x00020000,
-	0x40010000, 0x03010000, 0x12010000, 0x02010000, 0x21010000, 0x01010010, 0x11010000, 0x01010000,
-	0x30010000, 0x00010020, 0x10010010, 0x00010010, 0x20010000, 0x00011000, 0x10010000, 0x00010000,
-	0x50000000, 0x04000000, 0x13000000, 0x03000000, 0x22000000, 0x02000010, 0x12000000, 0x02000000,
-	0x31000000, 0x01000020, 0x11000010, 0x01000010, 0x21000000, 0x01001000, 0x11000000, 0x01000000,
-	0x40000000, 0x00000030, 0x10000020, 0x00000020, 0x20000010, 0x00001010, 0x10000010, 0x00000010,
-	0x30000000, 0x00002000, 0x10001000, 0x00001000, 0x20000000, 0x00100000, 0x10000000, 0x00000000,
+	0x80000000, 0x00000007, 0x10000006, 0x00000006, 0x20000005, 0x00000105, 0x10000005, 0x00000005, 0x30000004,
+	0x00000204, 0x10000104, 0x00000104, 0x20000004, 0x00010004, 0x10000004, 0x00000004, 0x40000003, 0x00000303,
+	0x10000203, 0x00000203, 0x20000103, 0x00010103, 0x10000103, 0x00000103, 0x30000003, 0x00020003, 0x10010003,
+	0x00010003, 0x20000003, 0x01000003, 0x10000003, 0x00000003, 0x50000002, 0x00000402, 0x10000302, 0x00000302,
+	0x20000202, 0x00010202, 0x10000202, 0x00000202, 0x30000102, 0x00020102, 0x10010102, 0x00010102, 0x20000102,
+	0x01000102, 0x10000102, 0x00000102, 0x40000002, 0x00030002, 0x10020002, 0x00020002, 0x20010002, 0x01010002,
+	0x10010002, 0x00010002, 0x30000002, 0x02000002, 0x11000002, 0x01000002, 0x20000002, 0x00000012, 0x10000002,
+	0x00000002, 0x60000001, 0x00000501, 0x10000401, 0x00000401, 0x20000301, 0x00010301, 0x10000301, 0x00000301,
+	0x30000201, 0x00020201, 0x10010201, 0x00010201, 0x20000201, 0x01000201, 0x10000201, 0x00000201, 0x40000101,
+	0x00030101, 0x10020101, 0x00020101, 0x20010101, 0x01010101, 0x10010101, 0x00010101, 0x30000101, 0x02000101,
+	0x11000101, 0x01000101, 0x20000101, 0x00000111, 0x10000101, 0x00000101, 0x50000001, 0x00040001, 0x10030001,
+	0x00030001, 0x20020001, 0x01020001, 0x10020001, 0x00020001, 0x30010001, 0x02010001, 0x11010001, 0x01010001,
+	0x20010001, 0x00010011, 0x10010001, 0x00010001, 0x40000001, 0x03000001, 0x12000001, 0x02000001, 0x21000001,
+	0x01000011, 0x11000001, 0x01000001, 0x30000001, 0x00000021, 0x10000011, 0x00000011, 0x20000001, 0x00001001,
+	0x10000001, 0x00000001, 0x70000000, 0x00000600, 0x10000500, 0x00000500, 0x20000400, 0x00010400, 0x10000400,
+	0x00000400, 0x30000300, 0x00020300, 0x10010300, 0x00010300, 0x20000300, 0x01000300, 0x10000300, 0x00000300,
+	0x40000200, 0x00030200, 0x10020200, 0x00020200, 0x20010200, 0x01010200, 0x10010200, 0x00010200, 0x30000200,
+	0x02000200, 0x11000200, 0x01000200, 0x20000200, 0x00000210, 0x10000200, 0x00000200, 0x50000100, 0x00040100,
+	0x10030100, 0x00030100, 0x20020100, 0x01020100, 0x10020100, 0x00020100, 0x30010100, 0x02010100, 0x11010100,
+	0x01010100, 0x20010100, 0x00010110, 0x10010100, 0x00010100, 0x40000100, 0x03000100, 0x12000100, 0x02000100,
+	0x21000100, 0x01000110, 0x11000100, 0x01000100, 0x30000100, 0x00000120, 0x10000110, 0x00000110, 0x20000100,
+	0x00001100, 0x10000100, 0x00000100, 0x60000000, 0x00050000, 0x10040000, 0x00040000, 0x20030000, 0x01030000,
+	0x10030000, 0x00030000, 0x30020000, 0x02020000, 0x11020000, 0x01020000, 0x20020000, 0x00020010, 0x10020000,
+	0x00020000, 0x40010000, 0x03010000, 0x12010000, 0x02010000, 0x21010000, 0x01010010, 0x11010000, 0x01010000,
+	0x30010000, 0x00010020, 0x10010010, 0x00010010, 0x20010000, 0x00011000, 0x10010000, 0x00010000, 0x50000000,
+	0x04000000, 0x13000000, 0x03000000, 0x22000000, 0x02000010, 0x12000000, 0x02000000, 0x31000000, 0x01000020,
+	0x11000010, 0x01000010, 0x21000000, 0x01001000, 0x11000000, 0x01000000, 0x40000000, 0x00000030, 0x10000020,
+	0x00000020, 0x20000010, 0x00001010, 0x10000010, 0x00000010, 0x30000000, 0x00002000, 0x10001000, 0x00001000,
+	0x20000000, 0x00100000, 0x10000000, 0x00000000,
 };
 
 static const uint8 kRiceCodeBits2Len[256] = {
-	0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
-	1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-	1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-	1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-	3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8,
+	0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 1, 2, 2, 3, 2,
+	3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3,
+	3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5,
+	6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4,
+	3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4,
+	5, 5, 6, 5, 6, 6, 7, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6,
+	6, 7, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8,
 };
-
 
 bool DecodeGolombRiceLengths(uint8 *dst, size_t size, BitReader2 *br) {
 	const uint8 *p = br->p, *p_end = br->p_end;
@@ -861,11 +839,10 @@ bool DecodeGolombRiceLengths(uint8 *dst, size_t size, BitReader2 *br) {
 	for (;;) {
 		if (v == 0) {
 			count += 8;
-		}
-		else {
+		} else {
 			uint32 x = kRiceCodeBits2Value[v];
-			*(uint32*)&dst[0] = count + (x & 0x0f0f0f0f);
-			*(uint32*)&dst[4] = (x >> 4) & 0x0f0f0f0f;
+			*(uint32 *)&dst[0] = count + (x & 0x0f0f0f0f);
+			*(uint32 *)&dst[4] = (x >> 4) & 0x0f0f0f0f;
 			dst += kRiceCodeBits2Len[v];
 			if (dst >= dst_end)
 				break;
@@ -878,7 +855,9 @@ bool DecodeGolombRiceLengths(uint8 *dst, size_t size, BitReader2 *br) {
 	// went too far, step back
 	if (dst > dst_end) {
 		int n = dst - dst_end;
-		do v &= (v - 1); while (--n);
+		do
+			v &= (v - 1);
+		while (--n);
 	}
 	// step back if byte not finished
 	int bitpos = 0;
@@ -909,51 +888,49 @@ bool DecodeGolombRiceBits(uint8 *dst, uint size, uint bitcount, BitReader2 *br) 
 	br->bitpos = bits_required & 7;
 
 	// todo. handle r/w outside of range
-	uint64 bak = *(uint64*)dst_end;
+	uint64 bak = *(uint64 *)dst_end;
 
 	if (bitcount < 2) {
 		assert(bitcount == 1);
 		do {
 			// Read the next byte
-			uint64 bits = (uint8)(_byteswap_ulong(*(uint32*)p) >> (24 - bitpos));
+			uint64 bits = (uint8)(_byteswap_ulong(*(uint32 *)p) >> (24 - bitpos));
 			p += 1;
 			// Expand each bit into each byte of the uint64.
 			bits = (bits | (bits << 28)) & 0xF0000000Full;
 			bits = (bits | (bits << 14)) & 0x3000300030003ull;
 			bits = (bits | (bits << 7)) & 0x0101010101010101ull;
-			*(uint64*)dst = *(uint64*)dst * 2 + _byteswap_uint64(bits);
+			*(uint64 *)dst = *(uint64 *)dst * 2 + _byteswap_uint64(bits);
 			dst += 8;
 		} while (dst < dst_end);
-	}
-	else if (bitcount == 2) {
+	} else if (bitcount == 2) {
 		do {
 			// Read the next 2 bytes
-			uint64 bits = (uint16)(_byteswap_ulong(*(uint32*)p) >> (16 - bitpos));
+			uint64 bits = (uint16)(_byteswap_ulong(*(uint32 *)p) >> (16 - bitpos));
 			p += 2;
 			// Expand each bit into each byte of the uint64.
 			bits = (bits | (bits << 24)) & 0xFF000000FFull;
 			bits = (bits | (bits << 12)) & 0xF000F000F000Full;
 			bits = (bits | (bits << 6)) & 0x0303030303030303ull;
-			*(uint64*)dst = *(uint64*)dst * 4 + _byteswap_uint64(bits);
+			*(uint64 *)dst = *(uint64 *)dst * 4 + _byteswap_uint64(bits);
 			dst += 8;
 		} while (dst < dst_end);
 
-	}
-	else {
+	} else {
 		assert(bitcount == 3);
 		do {
 			// Read the next 3 bytes
-			uint64 bits = (_byteswap_ulong(*(uint32*)p) >> (8 - bitpos)) & 0xffffff;
+			uint64 bits = (_byteswap_ulong(*(uint32 *)p) >> (8 - bitpos)) & 0xffffff;
 			p += 3;
 			// Expand each bit into each byte of the uint64.
 			bits = (bits | (bits << 20)) & 0xFFF00000FFFull;
 			bits = (bits | (bits << 10)) & 0x3F003F003F003Full;
 			bits = (bits | (bits << 5)) & 0x0707070707070707ull;
-			*(uint64*)dst = *(uint64*)dst * 8 + _byteswap_uint64(bits);
+			*(uint64 *)dst = *(uint64 *)dst * 8 + _byteswap_uint64(bits);
 			dst += 8;
 		} while (dst < dst_end);
 	}
-	*(uint64*)dst_end = bak;
+	*(uint64 *)dst_end = bak;
 	return true;
 }
 
@@ -1040,25 +1017,24 @@ int Huff_ReadCodeLengthsNew(BitReader *bits, uint8 *syms, uint32 *code_prefix) {
 			running_sum += v;
 		}
 
-	}
-	else {
+	} else {
 		// Ensure we don't read unknown data that could contaminate
 		// max_codeword_len.
-		__m128i bak = _mm_loadu_si128((__m128i*)&code_len[num_symbols]);
-		_mm_storeu_si128((__m128i*)&code_len[num_symbols], _mm_set1_epi32(0));
+		__m128i bak = _mm_loadu_si128((__m128i *)&code_len[num_symbols]);
+		_mm_storeu_si128((__m128i *)&code_len[num_symbols], _mm_set1_epi32(0));
 		// apply a filter
 		__m128i avg = _mm_set1_epi8(0x1e);
 		__m128i ones = _mm_set1_epi8(1);
 		__m128i max_codeword_len = _mm_set1_epi8(10);
 		for (uint i = 0; i < num_symbols; i += 16) {
-			__m128i v = _mm_loadu_si128((__m128i*)&code_len[i]), t;
+			__m128i v = _mm_loadu_si128((__m128i *)&code_len[i]), t;
 			// avg[0..15] = avg[15]
 			avg = _mm_unpackhi_epi8(avg, avg);
 			avg = _mm_unpackhi_epi8(avg, avg);
 			avg = _mm_shuffle_epi32(avg, 255);
 			// v = -(int)(v & 1) ^ (v >> 1)
 			v = _mm_xor_si128(_mm_sub_epi8(_mm_set1_epi8(0), _mm_and_si128(v, ones)),
-				_mm_and_si128(_mm_srli_epi16(v, 1), _mm_set1_epi8(0x7f)));
+							  _mm_and_si128(_mm_srli_epi16(v, 1), _mm_set1_epi8(0x7f)));
 			// create all the sums. v[n] = v[0] + ... + v[n]
 			t = _mm_add_epi8(_mm_slli_si128(v, 1), v);
 			t = _mm_add_epi8(_mm_slli_si128(t, 2), t);
@@ -1073,9 +1049,9 @@ int Huff_ReadCodeLengthsNew(BitReader *bits, uint8 *syms, uint32 *code_prefix) {
 			// max_codeword_len = max(max_codeword_len, v)
 			max_codeword_len = _mm_max_epu8(max_codeword_len, v);
 			// mem[] = v+1
-			_mm_storeu_si128((__m128i*)&code_len[i], _mm_add_epi8(v, _mm_set1_epi8(1)));
+			_mm_storeu_si128((__m128i *)&code_len[i], _mm_add_epi8(v, _mm_set1_epi8(1)));
 		}
-		_mm_storeu_si128((__m128i*)&code_len[num_symbols], bak);
+		_mm_storeu_si128((__m128i *)&code_len[num_symbols], bak);
 		if (_mm_movemask_epi8(_mm_cmpeq_epi8(max_codeword_len, _mm_set1_epi8(10))) != 0xffff)
 			return -1; // codeword too big?
 	}
@@ -1105,9 +1081,7 @@ struct NewHuffLut {
 };
 
 // May overflow 16 bytes past the end
-void FillByteOverflow16(uint8 *dst, uint8 v, size_t n) {
-	memset(dst, v, n);
-}
+void FillByteOverflow16(uint8 *dst, uint8 v, size_t n) { memset(dst, v, n); }
 
 bool Huff_MakeLut(const uint32 *prefix_org, const uint32 *prefix_cur, NewHuffLut *hufflut, uint8 *syms) {
 	uint32 currslot = 0;
@@ -1154,17 +1128,15 @@ int Kraken_DecodeBytes_Type12(const byte *src, size_t src_size, byte *output, in
 	bits.p_end = src_end;
 	BitReader_Refill(&bits);
 
-	static const uint32 code_prefix_org[12] = { 0x0, 0x0, 0x2, 0x6, 0xE, 0x1E, 0x3E, 0x7E, 0xFE, 0x1FE, 0x2FE, 0x3FE };
-	uint32 code_prefix[12] = { 0x0, 0x0, 0x2, 0x6, 0xE, 0x1E, 0x3E, 0x7E, 0xFE, 0x1FE, 0x2FE, 0x3FE };
+	static const uint32 code_prefix_org[12] = {0x0, 0x0, 0x2, 0x6, 0xE, 0x1E, 0x3E, 0x7E, 0xFE, 0x1FE, 0x2FE, 0x3FE};
+	uint32 code_prefix[12] = {0x0, 0x0, 0x2, 0x6, 0xE, 0x1E, 0x3E, 0x7E, 0xFE, 0x1FE, 0x2FE, 0x3FE};
 	uint8 syms[1280];
 	int num_syms;
 	if (!BitReader_ReadBitNoRefill(&bits)) {
 		num_syms = Huff_ReadCodeLengthsOld(&bits, syms, code_prefix);
-	}
-	else if (!BitReader_ReadBitNoRefill(&bits)) {
+	} else if (!BitReader_ReadBitNoRefill(&bits)) {
 		num_syms = Huff_ReadCodeLengthsNew(&bits, syms, code_prefix);
-	}
-	else {
+	} else {
 		return -1;
 	}
 
@@ -1186,7 +1158,7 @@ int Kraken_DecodeBytes_Type12(const byte *src, size_t src_size, byte *output, in
 	if (type == 1) {
 		if (src + 3 > src_end)
 			return -1;
-		split_mid = *(uint16*)src;
+		split_mid = *(uint16 *)src;
 		src += 2;
 		hr.output = output;
 		hr.output_end = output + output_size;
@@ -1201,22 +1173,21 @@ int Kraken_DecodeBytes_Type12(const byte *src, size_t src_size, byte *output, in
 		hr.src_end_bits = 0;
 		if (!Kraken_DecodeBytesCore(&hr, &rev_lut))
 			return -1;
-	}
-	else {
+	} else {
 		if (src + 6 > src_end)
 			return -1;
 
 		half_output_size = (output_size + 1) >> 1;
-		split_mid = *(uint32*)src & 0xFFFFFF;
+		split_mid = *(uint32 *)src & 0xFFFFFF;
 		src += 3;
 		if (split_mid > (src_end - src))
 			return -1;
 		src_mid = src + split_mid;
-		split_left = *(uint16*)src;
+		split_left = *(uint16 *)src;
 		src += 2;
 		if (src_mid - src < split_left + 2 || src_end - src_mid < 3)
 			return -1;
-		split_right = *(uint16*)src_mid;
+		split_right = *(uint16 *)src_mid;
 		if (src_end - (src_mid + 2) < split_right + 2)
 			return -1;
 
@@ -1251,17 +1222,15 @@ int Kraken_DecodeBytes_Type12(const byte *src, size_t src_size, byte *output, in
 	return (int)src_size;
 }
 
-static uint32 bitmasks[32] = {
-	0x1, 0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f, 0xff,
-	0x1ff, 0x3ff, 0x7ff, 0xfff, 0x1fff, 0x3fff, 0x7fff, 0xffff,
-	0x1ffff, 0x3ffff, 0x7ffff, 0xfffff, 0x1fffff, 0x3fffff, 0x7fffff,
-	0xffffff, 0x1ffffff, 0x3ffffff, 0x7ffffff, 0xfffffff, 0x1fffffff, 0x3fffffff, 0x7fffffff, 0xffffffff
-};
+static uint32 bitmasks[32] = {0x1,		  0x3,		  0x7,		  0xf,		 0x1f,		0x3f,	   0x7f,
+							  0xff,		  0x1ff,	  0x3ff,	  0x7ff,	 0xfff,		0x1fff,	   0x3fff,
+							  0x7fff,	  0xffff,	  0x1ffff,	  0x3ffff,	 0x7ffff,	0xfffff,   0x1fffff,
+							  0x3fffff,	  0x7fffff,	  0xffffff,	  0x1ffffff, 0x3ffffff, 0x7ffffff, 0xfffffff,
+							  0x1fffffff, 0x3fffffff, 0x7fffffff, 0xffffffff};
 
-int Kraken_DecodeMultiArray(const uint8 *src, const uint8 *src_end,
-	uint8 *dst, uint8 *dst_end,
-	uint8 **array_data, int *array_lens, int array_count,
-	int *total_size_out, bool force_memmove, uint8 *scratch, uint8 *scratch_end) {
+int Kraken_DecodeMultiArray(const uint8 *src, const uint8 *src_end, uint8 *dst, uint8 *dst_end, uint8 **array_data,
+							int *array_lens, int array_count, int *total_size_out, bool force_memmove, uint8 *scratch,
+							uint8 *scratch_end) {
 	const uint8 *src_org = src;
 
 	if (src_end - src < 4)
@@ -1284,7 +1253,8 @@ int Kraken_DecodeMultiArray(const uint8 *src, const uint8 *src_end,
 	if (num_arrays_in_file == 0) {
 		for (int i = 0; i < array_count; i++) {
 			uint8 *chunk_dst = dst;
-			int dec = Kraken_DecodeBytes(&chunk_dst, src, src_end, &decoded_size, dst_end - dst, force_memmove, scratch, scratch_end);
+			int dec = Kraken_DecodeBytes(&chunk_dst, src, src_end, &decoded_size, dst_end - dst, force_memmove, scratch,
+										 scratch_end);
 			if (dec < 0)
 				return -1;
 			dst += decoded_size;
@@ -1305,7 +1275,8 @@ int Kraken_DecodeMultiArray(const uint8 *src, const uint8 *src_end,
 
 	for (int i = 0; i < num_arrays_in_file; i++) {
 		uint8 *chunk_dst = scratch_cur;
-		int dec = Kraken_DecodeBytes(&chunk_dst, src, src_end, &decoded_size, scratch_end - scratch_cur, force_memmove, scratch_cur, scratch_end);
+		int dec = Kraken_DecodeBytes(&chunk_dst, src, src_end, &decoded_size, scratch_end - scratch_cur, force_memmove,
+									 scratch_cur, scratch_end);
 		if (dec < 0)
 			return -1;
 		entropy_array_data[i] = chunk_dst;
@@ -1319,7 +1290,7 @@ int Kraken_DecodeMultiArray(const uint8 *src, const uint8 *src_end,
 	if (src_end - src < 3)
 		return -1;
 
-	int Q = *(uint16*)src;
+	int Q = *(uint16 *)src;
 	src += 2;
 
 	int out_size;
@@ -1341,10 +1312,10 @@ int Kraken_DecodeMultiArray(const uint8 *src, const uint8 *src_end,
 	uint8 *interval_indexes = scratch_cur;
 	scratch_cur += num_indexes;
 
-
 	if (Q & 0x8000) {
 		int size_out;
-		int n = Kraken_DecodeBytes(&interval_indexes, src, src_end, &size_out, num_indexes, false, scratch_cur, scratch_end);
+		int n = Kraken_DecodeBytes(&interval_indexes, src, src_end, &size_out, num_indexes, false, scratch_cur,
+								   scratch_end);
 		if (n < 0 || size_out != num_indexes)
 			return -1;
 		src += n;
@@ -1356,17 +1327,18 @@ int Kraken_DecodeMultiArray(const uint8 *src, const uint8 *src_end,
 		}
 
 		num_lens = num_indexes;
-	}
-	else {
+	} else {
 		int lenlog2_chunksize = num_indexes - array_count;
 
 		int size_out;
-		int n = Kraken_DecodeBytes(&interval_indexes, src, src_end, &size_out, num_indexes, false, scratch_cur, scratch_end);
+		int n = Kraken_DecodeBytes(&interval_indexes, src, src_end, &size_out, num_indexes, false, scratch_cur,
+								   scratch_end);
 		if (n < 0 || size_out != num_indexes)
 			return -1;
 		src += n;
 
-		n = Kraken_DecodeBytes(&interval_lenlog2, src, src_end, &size_out, lenlog2_chunksize, false, scratch_cur, scratch_end);
+		n = Kraken_DecodeBytes(&interval_lenlog2, src, src_end, &size_out, lenlog2_chunksize, false, scratch_cur,
+							   scratch_end);
 		if (n < 0 || size_out != lenlog2_chunksize)
 			return -1;
 		src += n;
@@ -1382,7 +1354,7 @@ int Kraken_DecodeMultiArray(const uint8 *src, const uint8 *src_end,
 	scratch_cur = ALIGN_POINTER(scratch_cur, 4);
 	if (scratch_end - scratch_cur < num_lens * 4)
 		return -1;
-	uint32 *decoded_intervals = (uint32*)scratch_cur;
+	uint32 *decoded_intervals = (uint32 *)scratch_cur;
 
 	int varbits_complen = Q & 0x3FFF;
 	if (src_end - src < varbits_complen)
@@ -1398,13 +1370,12 @@ int Kraken_DecodeMultiArray(const uint8 *src, const uint8 *src_end,
 	uint32 bits_b = 0;
 	int bitpos_b = 24;
 
-
 	int i;
 	for (i = 0; i + 2 <= num_lens; i += 2) {
-		bits_f |= _byteswap_ulong(*(uint32*)f) >> (24 - bitpos_f);
+		bits_f |= _byteswap_ulong(*(uint32 *)f) >> (24 - bitpos_f);
 		f += (bitpos_f + 7) >> 3;
 
-		bits_b |= ((uint32*)b)[-1] >> (24 - bitpos_b);
+		bits_b |= ((uint32 *)b)[-1] >> (24 - bitpos_b);
 		b -= (bitpos_b + 7) >> 3;
 
 		int numbits_f = interval_lenlog2[i + 0];
@@ -1428,7 +1399,7 @@ int Kraken_DecodeMultiArray(const uint8 *src, const uint8 *src_end,
 
 	// read final one since above loop reads 2
 	if (i < num_lens) {
-		bits_f |= _byteswap_ulong(*(uint32*)f) >> (24 - bitpos_f);
+		bits_f |= _byteswap_ulong(*(uint32 *)f) >> (24 - bitpos_f);
 		int numbits_f = interval_lenlog2[i];
 		bits_f = _rotl(bits_f | 1, numbits_f);
 		int value_f = bits_f & bitmasks[numbits_f];
@@ -1476,7 +1447,8 @@ int Kraken_DecodeMultiArray(const uint8 *src, const uint8 *src_end,
 	return src_end_actual - src_org;
 }
 
-int Krak_DecodeRecursive(const byte *src, size_t src_size, byte *output, int output_size, uint8 *scratch, uint8 *scratch_end) {
+int Krak_DecodeRecursive(const byte *src, size_t src_size, byte *output, int output_size, uint8 *scratch,
+						 uint8 *scratch_end) {
 	const uint8 *src_org = src;
 	byte *output_end = output + output_size;
 	const byte *src_end = src + src_size;
@@ -1492,7 +1464,8 @@ int Krak_DecodeRecursive(const byte *src, size_t src_size, byte *output, int out
 		src++;
 		do {
 			int decoded_size;
-			int dec = Kraken_DecodeBytes(&output, src, src_end, &decoded_size, output_end - output, true, scratch, scratch_end);
+			int dec = Kraken_DecodeBytes(&output, src, src_end, &decoded_size, output_end - output, true, scratch,
+										 scratch_end);
 			if (dec < 0)
 				return -1;
 			output += decoded_size;
@@ -1501,11 +1474,11 @@ int Krak_DecodeRecursive(const byte *src, size_t src_size, byte *output, int out
 		if (output != output_end)
 			return -1;
 		return src - src_org;
-	}
-	else {
+	} else {
 		uint8 *array_data;
 		int array_len, decoded_size;
-		int dec = Kraken_DecodeMultiArray(src, src_end, output, output_end, &array_data, &array_len, 1, &decoded_size, true, scratch, scratch_end);
+		int dec = Kraken_DecodeMultiArray(src, src_end, output, output_end, &array_data, &array_len, 1, &decoded_size,
+										  true, scratch, scratch_end);
 		if (dec < 0)
 			return -1;
 		output += decoded_size;
@@ -1528,7 +1501,8 @@ int Krak_DecodeRLE(const byte *src, size_t src_size, byte *dst, int dst_size, ui
 	if (src[0]) {
 		uint8 *dst_ptr = scratch;
 		int dec_size;
-		int n = Kraken_DecodeBytes(&dst_ptr, src, src + src_size, &dec_size, scratch_end - scratch, true, scratch, scratch_end);
+		int n = Kraken_DecodeBytes(&dst_ptr, src, src + src_size, &dec_size, scratch_end - scratch, true, scratch,
+								   scratch_end);
 		if (n <= 0)
 			return -1;
 		int cmd_len = src_size - n + dec_size;
@@ -1554,9 +1528,8 @@ int Krak_DecodeRLE(const byte *src, size_t src_size, byte *dst, int dst_size, ui
 			dst += bytes_to_copy;
 			memset(dst, rle_byte, bytes_to_rle);
 			dst += bytes_to_rle;
-		}
-		else if (cmd >= 0x10) {
-			uint32 data = *(uint16*)(cmd_ptr_end - 2) - 4096;
+		} else if (cmd >= 0x10) {
+			uint32 data = *(uint16 *)(cmd_ptr_end - 2) - 4096;
 			cmd_ptr_end -= 2;
 			uint32 bytes_to_copy = data & 0x3F;
 			uint32 bytes_to_rle = data >> 6;
@@ -1567,21 +1540,18 @@ int Krak_DecodeRLE(const byte *src, size_t src_size, byte *dst, int dst_size, ui
 			dst += bytes_to_copy;
 			memset(dst, rle_byte, bytes_to_rle);
 			dst += bytes_to_rle;
-		}
-		else if (cmd == 1) {
+		} else if (cmd == 1) {
 			rle_byte = *cmd_ptr++;
 			cmd_ptr_end--;
-		}
-		else if (cmd >= 9) {
-			uint32 bytes_to_rle = (*(uint16*)(cmd_ptr_end - 2) - 0x8ff) * 128;
+		} else if (cmd >= 9) {
+			uint32 bytes_to_rle = (*(uint16 *)(cmd_ptr_end - 2) - 0x8ff) * 128;
 			cmd_ptr_end -= 2;
 			if (dst_end - dst < bytes_to_rle)
 				return -1;
 			memset(dst, rle_byte, bytes_to_rle);
 			dst += bytes_to_rle;
-		}
-		else {
-			uint32 bytes_to_copy = (*(uint16*)(cmd_ptr_end - 2) - 511) * 64;
+		} else {
+			uint32 bytes_to_copy = (*(uint16 *)(cmd_ptr_end - 2) - 511) * 64;
 			cmd_ptr_end -= 2;
 			if (cmd_ptr_end - cmd_ptr < bytes_to_copy || dst_end - dst < bytes_to_copy)
 				return -1;
@@ -1606,7 +1576,7 @@ struct TansData {
 	uint32 B[256];
 };
 
-template<typename T> void SimpleSort(T *p, T *pend) {
+template <typename T> void SimpleSort(T *p, T *pend) {
 	if (p != pend) {
 		for (T *lp = p + 1, *rp; lp != pend; lp++) {
 			T t = lp[0];
@@ -1693,8 +1663,7 @@ bool Tans_DecodeTable(BitReader *bits, int L_bits, TansData *tans_data) {
 			return false;
 
 		return true;
-	}
-	else {
+	} else {
 		bool seen[256];
 		memset(seen, 0, sizeof(seen));
 		uint32 L = 1 << L_bits;
@@ -1730,8 +1699,7 @@ bool Tans_DecodeTable(BitReader *bits, int L_bits, TansData *tans_data) {
 			seen[sym] = true;
 			if (weight == 1) {
 				*tanstable_A++ = sym;
-			}
-			else {
+			} else {
 				*tanstable_B++ = (sym << 16) + weight;
 			}
 
@@ -1820,8 +1788,7 @@ void Tans_InitLut(TansData *tans_data, int L_bits, TansLutEnt *lut) {
 						le.w += what_to_add;
 					}
 					X -= Y;
-				}
-				else {
+				} else {
 					for (int n = X; n; n--) {
 						*dst++ = le;
 						le.w += what_to_add;
@@ -1840,8 +1807,7 @@ void Tans_InitLut(TansData *tans_data, int L_bits, TansLutEnt *lut) {
 				}
 				pointers[j] = dst;
 			}
-		}
-		else {
+		} else {
 			assert(weight > 0);
 			uint32 bits = ((1 << weight) - 1) << (weights_sum & 3);
 			bits |= (bits >> 4);
@@ -1883,33 +1849,33 @@ bool Tans_Decode(TansDecoderParams *params) {
 	if (ptr_f > ptr_b)
 		return false;
 
-#define TANS_FORWARD_BITS()                     \
-    bits_f |= *(uint32 *)ptr_f << bitpos_f;     \
-    ptr_f += (31 - bitpos_f) >> 3;              \
-    bitpos_f |= 24;
+#define TANS_FORWARD_BITS()                                                                                            \
+	bits_f |= *(uint32 *)ptr_f << bitpos_f;                                                                            \
+	ptr_f += (31 - bitpos_f) >> 3;                                                                                     \
+	bitpos_f |= 24;
 
-#define TANS_FORWARD_ROUND(state)               \
-    e = &lut[state];                            \
-    *dst++ = e->symbol;                         \
-    bitpos_f -= e->bits_x;                      \
-    state = (bits_f & e->x) + e->w;             \
-    bits_f >>= e->bits_x;                       \
-    if (dst >= dst_end)                         \
-      break;
+#define TANS_FORWARD_ROUND(state)                                                                                      \
+	e = &lut[state];                                                                                                   \
+	*dst++ = e->symbol;                                                                                                \
+	bitpos_f -= e->bits_x;                                                                                             \
+	state = (bits_f & e->x) + e->w;                                                                                    \
+	bits_f >>= e->bits_x;                                                                                              \
+	if (dst >= dst_end)                                                                                                \
+		break;
 
-#define TANS_BACKWARD_BITS()                    \
-    bits_b |= _byteswap_ulong(((uint32 *)ptr_b)[-1]) << bitpos_b;     \
-    ptr_b -= (31 - bitpos_b) >> 3;              \
-    bitpos_b |= 24;
+#define TANS_BACKWARD_BITS()                                                                                           \
+	bits_b |= _byteswap_ulong(((uint32 *)ptr_b)[-1]) << bitpos_b;                                                      \
+	ptr_b -= (31 - bitpos_b) >> 3;                                                                                     \
+	bitpos_b |= 24;
 
-#define TANS_BACKWARD_ROUND(state)              \
-    e = &lut[state];                            \
-    *dst++ = e->symbol;                         \
-    bitpos_b -= e->bits_x;                      \
-    state = (bits_b & e->x) + e->w;             \
-    bits_b >>= e->bits_x;                       \
-    if (dst >= dst_end)                         \
-      break;
+#define TANS_BACKWARD_ROUND(state)                                                                                     \
+	e = &lut[state];                                                                                                   \
+	*dst++ = e->symbol;                                                                                                \
+	bitpos_b -= e->bits_x;                                                                                             \
+	state = (bits_b & e->x) + e->w;                                                                                    \
+	bits_b >>= e->bits_x;                                                                                              \
+	if (dst >= dst_end)                                                                                                \
+		break;
 
 	if (dst < dst_end) {
 		for (;;) {
@@ -1976,7 +1942,7 @@ int Krak_DecodeTans(const byte *src, size_t src_size, byte *dst, int dst_size, u
 	if (src >= src_end)
 		return -1;
 
-	uint32 lut_space_required = ((sizeof(TansLutEnt) << L_bits) + 15) &~15;
+	uint32 lut_space_required = ((sizeof(TansLutEnt) << L_bits) + 15) & ~15;
 	if (lut_space_required > (scratch_end - scratch))
 		return -1;
 
@@ -1989,9 +1955,9 @@ int Krak_DecodeTans(const byte *src, size_t src_size, byte *dst, int dst_size, u
 
 	// Read out the initial state
 	uint32 L_mask = (1 << L_bits) - 1;
-	uint32 bits_f = *(uint32*)src;
+	uint32 bits_f = *(uint32 *)src;
 	src += 4;
-	uint32 bits_b = _byteswap_ulong(*(uint32*)(src_end - 4));
+	uint32 bits_b = _byteswap_ulong(*(uint32 *)(src_end - 4));
 	src_end -= 4;
 	uint32 bitpos_f = 32, bitpos_b = 32;
 
@@ -2043,8 +2009,7 @@ int Kraken_GetBlockSize(const uint8 *src, const uint8 *src_end, int *dest_size, 
 			// In this mode, memcopy stores the length in the bottom 12 bits.
 			src_size = ((src[0] << 8) | src[1]) & 0xFFF;
 			src += 2;
-		}
-		else {
+		} else {
 			if (src_end - src < 3)
 				return -1; // too few bytes
 			src_size = ((src[0] << 16) | (src[1] << 8) | src[2]);
@@ -2067,13 +2032,12 @@ int Kraken_GetBlockSize(const uint8 *src, const uint8 *src_end, int *dest_size, 
 		if (src_end - src < 3)
 			return -1; // too few bytes
 
-					   // short mode, 10 bit sizes
+		// short mode, 10 bit sizes
 		uint32 bits = ((src[0] << 16) | (src[1] << 8) | src[2]);
 		src_size = bits & 0x3ff;
 		dst_size = src_size + ((bits >> 10) & 0x3ff) + 1;
 		src += 3;
-	}
-	else {
+	} else {
 		// long mode, 18 bit sizes
 		if (src_end - src < 5)
 			return -1; // too few bytes
@@ -2090,8 +2054,8 @@ int Kraken_GetBlockSize(const uint8 *src, const uint8 *src_end, int *dest_size, 
 	return src_size;
 }
 
-
-int Kraken_DecodeBytes(byte **output, const byte *src, const byte *src_end, int *decoded_size, size_t output_size, bool force_memmove, uint8 *scratch, uint8 *scratch_end) {
+int Kraken_DecodeBytes(byte **output, const byte *src, const byte *src_end, int *decoded_size, size_t output_size,
+					   bool force_memmove, uint8 *scratch, uint8 *scratch_end) {
 	const byte *src_org = src;
 	int src_size, dst_size;
 
@@ -2104,8 +2068,7 @@ int Kraken_DecodeBytes(byte **output, const byte *src, const byte *src_end, int 
 			// In this mode, memcopy stores the length in the bottom 12 bits.
 			src_size = ((src[0] << 8) | src[1]) & 0xFFF;
 			src += 2;
-		}
-		else {
+		} else {
 			if (src_end - src < 3)
 				return -1; // too few bytes
 			src_size = ((src[0] << 16) | (src[1] << 8) | src[2]);
@@ -2119,7 +2082,7 @@ int Kraken_DecodeBytes(byte **output, const byte *src, const byte *src_end, int 
 		if (force_memmove)
 			memmove(*output, src, src_size);
 		else
-			*output = (byte*)src;
+			*output = (byte *)src;
 		return src + src_size - src_org;
 	}
 
@@ -2129,13 +2092,12 @@ int Kraken_DecodeBytes(byte **output, const byte *src, const byte *src_end, int 
 		if (src_end - src < 3)
 			return -1; // too few bytes
 
-					   // short mode, 10 bit sizes
+		// short mode, 10 bit sizes
 		uint32 bits = ((src[0] << 16) | (src[1] << 8) | src[2]);
 		src_size = bits & 0x3ff;
 		dst_size = src_size + ((bits >> 10) & 0x3ff) + 1;
 		src += 3;
-	}
-	else {
+	} else {
 		// long mode, 18 bit sizes
 		if (src_end - src < 5)
 			return -1; // too few bytes
@@ -2186,13 +2148,10 @@ void CombineScaledOffsetArrays(int *offs_stream, size_t offs_stream_size, int sc
 }
 
 // Unpacks the packed 8 bit offset and lengths into 32 bit.
-bool Kraken_UnpackOffsets(const byte *src, const byte *src_end,
-	const byte *packed_offs_stream, const byte *packed_offs_stream_extra, int packed_offs_stream_size,
-	int multi_dist_scale,
-	const byte *packed_litlen_stream, int packed_litlen_stream_size,
-	int *offs_stream, int *len_stream,
-	bool excess_flag, int excess_bytes) {
-
+bool Kraken_UnpackOffsets(const byte *src, const byte *src_end, const byte *packed_offs_stream,
+						  const byte *packed_offs_stream_extra, int packed_offs_stream_size, int multi_dist_scale,
+						  const byte *packed_litlen_stream, int packed_litlen_stream_size, int *offs_stream,
+						  int *len_stream, bool excess_flag, int excess_bytes) {
 
 	BitReader bits_a, bits_b;
 	int n, i;
@@ -2233,9 +2192,8 @@ bool Kraken_UnpackOffsets(const byte *src, const byte *src_end,
 				break;
 			*offs_stream++ = -(int32)BitReader_ReadDistanceB(&bits_b, *packed_offs_stream++);
 		}
-	}
-	else {
-		// New way of coding offsets 
+	} else {
+		// New way of coding offsets
 		int *offs_stream_org = offs_stream;
 		const uint8 *packed_offs_stream_end = packed_offs_stream + packed_offs_stream_size;
 		uint32 cmd, offs;
@@ -2254,15 +2212,15 @@ bool Kraken_UnpackOffsets(const byte *src, const byte *src_end,
 			*offs_stream++ = 8 - (int32)offs;
 		}
 		if (multi_dist_scale != 1) {
-			CombineScaledOffsetArrays(offs_stream_org, offs_stream - offs_stream_org, multi_dist_scale, packed_offs_stream_extra);
+			CombineScaledOffsetArrays(offs_stream_org, offs_stream - offs_stream_org, multi_dist_scale,
+									  packed_offs_stream_extra);
 		}
 	}
 	uint32 u32_len_stream_buf[512]; // max count is 128kb / 256 = 512
 	if (u32_len_stream_size > 512)
 		return false;
 
-	uint32 *u32_len_stream = u32_len_stream_buf,
-		*u32_len_stream_end = u32_len_stream_buf + u32_len_stream_size;
+	uint32 *u32_len_stream = u32_len_stream_buf, *u32_len_stream_end = u32_len_stream_buf + u32_len_stream_size;
 	for (i = 0; i + 1 < u32_len_stream_size; i += 2) {
 		if (!BitReader_ReadLength(&bits_a, &u32_len_stream[i + 0]))
 			return false;
@@ -2291,10 +2249,8 @@ bool Kraken_UnpackOffsets(const byte *src, const byte *src_end,
 
 	return true;
 }
-bool Kraken_ReadLzTable(int mode,
-	const byte *src, const byte *src_end,
-	byte *dst, int dst_size, int offset,
-	byte *scratch, byte *scratch_end, KrakenLzTable *lztable) {
+bool Kraken_ReadLzTable(int mode, const byte *src, const byte *src_end, byte *dst, int dst_size, int offset,
+						byte *scratch, byte *scratch_end, KrakenLzTable *lztable) {
 	byte *out;
 	int decode_count, n;
 	byte *packed_offs_stream, *packed_len_stream;
@@ -2324,8 +2280,8 @@ bool Kraken_ReadLzTable(int mode,
 
 	// Decode lit stream, bounded by dst_size
 	out = scratch;
-	n = Kraken_DecodeBytes(&out, src, src_end, &decode_count, Min(scratch_end - scratch, dst_size),
-		force_copy, scratch, scratch_end);
+	n = Kraken_DecodeBytes(&out, src, src_end, &decode_count, Min(scratch_end - scratch, dst_size), force_copy, scratch,
+						   scratch_end);
 	if (n < 0)
 		return false;
 	src += n;
@@ -2335,8 +2291,8 @@ bool Kraken_ReadLzTable(int mode,
 
 	// Decode command stream, bounded by dst_size
 	out = scratch;
-	n = Kraken_DecodeBytes(&out, src, src_end, &decode_count, Min(scratch_end - scratch, dst_size),
-		force_copy, scratch, scratch_end);
+	n = Kraken_DecodeBytes(&out, src, src_end, &decode_count, Min(scratch_end - scratch, dst_size), force_copy, scratch,
+						   scratch_end);
 	if (n < 0)
 		return false;
 	src += n;
@@ -2358,7 +2314,7 @@ bool Kraken_ReadLzTable(int mode,
 
 		packed_offs_stream = scratch;
 		n = Kraken_DecodeBytes(&packed_offs_stream, src, src_end, &lztable->offs_stream_size,
-			Min(scratch_end - scratch, lztable->cmd_stream_size), false, scratch, scratch_end);
+							   Min(scratch_end - scratch, lztable->cmd_stream_size), false, scratch, scratch_end);
 		if (n < 0)
 			return false;
 		src += n;
@@ -2367,18 +2323,17 @@ bool Kraken_ReadLzTable(int mode,
 		if (offs_scaling != 1) {
 			packed_offs_stream_extra = scratch;
 			n = Kraken_DecodeBytes(&packed_offs_stream_extra, src, src_end, &decode_count,
-				Min(scratch_end - scratch, lztable->offs_stream_size), false, scratch, scratch_end);
+								   Min(scratch_end - scratch, lztable->offs_stream_size), false, scratch, scratch_end);
 			if (n < 0 || decode_count != lztable->offs_stream_size)
 				return false;
 			src += n;
 			scratch += decode_count;
 		}
-	}
-	else {
+	} else {
 		// Decode packed offset stream, it's bounded by the command length.
 		packed_offs_stream = scratch;
 		n = Kraken_DecodeBytes(&packed_offs_stream, src, src_end, &lztable->offs_stream_size,
-			Min(scratch_end - scratch, lztable->cmd_stream_size), false, scratch, scratch_end);
+							   Min(scratch_end - scratch, lztable->cmd_stream_size), false, scratch, scratch_end);
 		if (n < 0)
 			return false;
 		src += n;
@@ -2388,7 +2343,7 @@ bool Kraken_ReadLzTable(int mode,
 	// Decode packed litlen stream. It's bounded by 1/4 of dst_size.
 	packed_len_stream = scratch;
 	n = Kraken_DecodeBytes(&packed_len_stream, src, src_end, &lztable->len_stream_size,
-		Min(scratch_end - scratch, dst_size >> 2), false, scratch, scratch_end);
+						   Min(scratch_end - scratch, dst_size >> 2), false, scratch, scratch_end);
 	if (n < 0)
 		return false;
 	src += n;
@@ -2396,28 +2351,25 @@ bool Kraken_ReadLzTable(int mode,
 
 	// Reserve memory for final dist stream
 	scratch = ALIGN_POINTER(scratch, 16);
-	lztable->offs_stream = (int*)scratch;
+	lztable->offs_stream = (int *)scratch;
 	scratch += lztable->offs_stream_size * 4;
 
 	// Reserve memory for final len stream
 	scratch = ALIGN_POINTER(scratch, 16);
-	lztable->len_stream = (int*)scratch;
+	lztable->len_stream = (int *)scratch;
 	scratch += lztable->len_stream_size * 4;
 
 	if (scratch + 64 > scratch_end)
 		return false;
 
-	return Kraken_UnpackOffsets(src, src_end, packed_offs_stream, packed_offs_stream_extra,
-		lztable->offs_stream_size, offs_scaling,
-		packed_len_stream, lztable->len_stream_size,
-		lztable->offs_stream, lztable->len_stream, 0, 0);
+	return Kraken_UnpackOffsets(src, src_end, packed_offs_stream, packed_offs_stream_extra, lztable->offs_stream_size,
+								offs_scaling, packed_len_stream, lztable->len_stream_size, lztable->offs_stream,
+								lztable->len_stream, 0, 0);
 }
-
 
 // Note: may access memory out of bounds on invalid input.
 bool Kraken_ProcessLzRuns_Type0(KrakenLzTable *lzt, byte *dst, byte *dst_end, byte *dst_start) {
-	const byte *cmd_stream = lzt->cmd_stream,
-		*cmd_stream_end = cmd_stream + lzt->cmd_stream_size;
+	const byte *cmd_stream = lzt->cmd_stream, *cmd_stream_end = cmd_stream + lzt->cmd_stream_size;
 	const int *len_stream = lzt->len_stream;
 	const int *len_stream_end = lzt->len_stream + lzt->len_stream_size;
 	const byte *lit_stream = lzt->lit_stream;
@@ -2474,7 +2426,7 @@ bool Kraken_ProcessLzRuns_Type0(KrakenLzTable *lzt, byte *dst, byte *dst_end, by
 		recent_offs[3] = offset;
 		last_offset = offset;
 
-		offs_stream = (int*)((intptr_t)offs_stream + ((offs_index + 1) & 4));
+		offs_stream = (int *)((intptr_t)offs_stream + ((offs_index + 1) & 4));
 
 		if ((uintptr_t)offset < (uintptr_t)(dst_start - dst))
 			return false; // offset out of bounds
@@ -2484,10 +2436,9 @@ bool Kraken_ProcessLzRuns_Type0(KrakenLzTable *lzt, byte *dst, byte *dst_end, by
 			COPY_64(dst, copyfrom);
 			COPY_64(dst + 8, copyfrom + 8);
 			dst += matchlen + 2;
-		}
-		else {
+		} else {
 			matchlen = 14 + *len_stream++; // why is the value not 16 here, the above case copies up to 16 bytes.
-			if ((uintptr_t)matchlen >(uintptr_t)(dst_end - dst))
+			if ((uintptr_t)matchlen > (uintptr_t)(dst_end - dst))
 				return false; // copy length out of bounds
 			COPY_64(dst, copyfrom);
 			COPY_64(dst + 8, copyfrom + 8);
@@ -2524,11 +2475,9 @@ bool Kraken_ProcessLzRuns_Type0(KrakenLzTable *lzt, byte *dst, byte *dst_end, by
 	return true;
 }
 
-
 // Note: may access memory out of bounds on invalid input.
 bool Kraken_ProcessLzRuns_Type1(KrakenLzTable *lzt, byte *dst, byte *dst_end, byte *dst_start) {
-	const byte *cmd_stream = lzt->cmd_stream,
-		*cmd_stream_end = cmd_stream + lzt->cmd_stream_size;
+	const byte *cmd_stream = lzt->cmd_stream, *cmd_stream_end = cmd_stream + lzt->cmd_stream_size;
 	const int *len_stream = lzt->len_stream;
 	const int *len_stream_end = lzt->len_stream + lzt->len_stream_size;
 	const byte *lit_stream = lzt->lit_stream;
@@ -2582,7 +2531,7 @@ bool Kraken_ProcessLzRuns_Type1(KrakenLzTable *lzt, byte *dst, byte *dst_end, by
 		recent_offs[offs_index + 1] = recent_offs[offs_index + 0];
 		recent_offs[3] = offset;
 
-		offs_stream = (int*)((intptr_t)offs_stream + ((offs_index + 1) & 4));
+		offs_stream = (int *)((intptr_t)offs_stream + ((offs_index + 1) & 4));
 
 		if ((uintptr_t)offset < (uintptr_t)(dst_start - dst))
 			return false; // offset out of bounds
@@ -2592,8 +2541,7 @@ bool Kraken_ProcessLzRuns_Type1(KrakenLzTable *lzt, byte *dst, byte *dst_end, by
 			COPY_64(dst, copyfrom);
 			COPY_64(dst + 8, copyfrom + 8);
 			dst += matchlen + 2;
-		}
-		else {
+		} else {
 			matchlen = 14 + *len_stream++; // why is the value not 16 here, the above case copies up to 16 bytes.
 			if ((uintptr_t)matchlen > (uintptr_t)(dst_end - dst))
 				return false; // copy length out of bounds
@@ -2647,21 +2595,20 @@ bool Kraken_ProcessLzRuns(int mode, byte *dst, int dst_size, int offset, KrakenL
 	if (mode == 0)
 		return Kraken_ProcessLzRuns_Type0(lztable, dst + (offset == 0 ? 8 : 0), dst_end, dst - offset);
 
-
 	return false;
 }
 
 // Decode one 256kb big quantum block. It's divided into two 128k blocks
 // internally that are compressed separately but with a shared history.
-int Kraken_DecodeQuantum(byte *dst, byte *dst_end, byte *dst_start,
-	const byte *src, const byte *src_end,
-	byte *scratch, byte *scratch_end) {
+int Kraken_DecodeQuantum(byte *dst, byte *dst_end, byte *dst_start, const byte *src, const byte *src_end, byte *scratch,
+						 byte *scratch_end) {
 	const byte *src_in = src;
 	int mode, chunkhdr, dst_count, src_used, written_bytes;
 
 	while (dst_end - dst != 0) {
 		dst_count = dst_end - dst;
-		if (dst_count > 0x20000) dst_count = 0x20000;
+		if (dst_count > 0x20000)
+			dst_count = 0x20000;
 		if (src_end - src < 4)
 			return -1;
 		chunkhdr = src[2] | src[1] << 8 | src[0] << 16;
@@ -2671,8 +2618,7 @@ int Kraken_DecodeQuantum(byte *dst, byte *dst_end, byte *dst_start,
 			src_used = Kraken_DecodeBytes(&out, src, src_end, &written_bytes, dst_count, false, scratch, scratch_end);
 			if (src_used < 0 || written_bytes != dst_count)
 				return -1;
-		}
-		else {
+		} else {
 			src += 3;
 			src_used = chunkhdr & 0x7FFFF;
 			mode = (chunkhdr >> 19) & 0xF;
@@ -2682,20 +2628,15 @@ int Kraken_DecodeQuantum(byte *dst, byte *dst_end, byte *dst_start,
 				size_t scratch_usage = Min(Min(3 * dst_count + 32 + 0xd000, 0x6C000), scratch_end - scratch);
 				if (scratch_usage < sizeof(KrakenLzTable))
 					return -1;
-				if (!Kraken_ReadLzTable(mode,
-					src, src + src_used,
-					dst, dst_count,
-					dst - dst_start,
-					scratch + sizeof(KrakenLzTable), scratch + scratch_usage,
-					(KrakenLzTable*)scratch))
+				if (!Kraken_ReadLzTable(mode, src, src + src_used, dst, dst_count, dst - dst_start,
+										scratch + sizeof(KrakenLzTable), scratch + scratch_usage,
+										(KrakenLzTable *)scratch))
 					return -1;
-				if (!Kraken_ProcessLzRuns(mode, dst, dst_count, dst - dst_start, (KrakenLzTable*)scratch))
+				if (!Kraken_ProcessLzRuns(mode, dst, dst_count, dst - dst_start, (KrakenLzTable *)scratch))
 					return -1;
-			}
-			else if (src_used > dst_count || mode != 0) {
+			} else if (src_used > dst_count || mode != 0) {
 				return -1;
-			}
-			else {
+			} else {
 				memmove(dst, src, dst_count);
 			}
 		}
@@ -2705,22 +2646,19 @@ int Kraken_DecodeQuantum(byte *dst, byte *dst_end, byte *dst_start,
 	return src - src_in;
 }
 
-
-
 void Kraken_CopyWholeMatch(byte *dst, uint32 offset, size_t length) {
 	size_t i = 0;
 	byte *src = dst - offset;
 	if (offset >= 8) {
 		for (; i + 8 <= length; i += 8)
-			*(uint64*)(dst + i) = *(uint64*)(src + i);
+			*(uint64 *)(dst + i) = *(uint64 *)(src + i);
 	}
 	for (; i < length; i++)
 		dst[i] = src[i];
 }
 
-bool Kraken_DecodeStep(struct KrakenDecoder *dec,
-	byte *dst_start, int offset, size_t dst_bytes_left_in,
-	const byte *src, size_t src_bytes_left) {
+bool Kraken_DecodeStep(struct KrakenDecoder *dec, byte *dst_start, int offset, size_t dst_bytes_left_in,
+					   const byte *src, size_t src_bytes_left) {
 	const byte *src_in = src;
 	const byte *src_end = src + src_bytes_left;
 	KrakenQuantumHeader qhdr;
@@ -2749,8 +2687,7 @@ bool Kraken_DecodeStep(struct KrakenDecoder *dec,
 
 	if (is_kraken_decoder) {
 		src = Kraken_ParseQuantumHeader(&qhdr, src, dec->hdr.use_checksums);
-	}
-	else {
+	} else {
 		src = LZNA_ParseQuantumHeader(&qhdr, src, dec->hdr.use_checksums, dst_bytes_left);
 	}
 
@@ -2771,8 +2708,7 @@ bool Kraken_DecodeStep(struct KrakenDecoder *dec,
 			if (qhdr.whole_match_distance > (uint32)offset)
 				return false;
 			Kraken_CopyWholeMatch(dst_start + offset, qhdr.whole_match_distance, dst_bytes_left);
-		}
-		else {
+		} else {
 			memset(dst_start + offset, qhdr.checksum, dst_bytes_left);
 		}
 		dec->src_used = (src - src_in);
@@ -2780,8 +2716,7 @@ bool Kraken_DecodeStep(struct KrakenDecoder *dec,
 		return true;
 	}
 
-	if (dec->hdr.use_checksums &&
-		(Kraken_GetCrc(src, qhdr.compressed_size) & 0xFFFFFF) != qhdr.checksum)
+	if (dec->hdr.use_checksums && (Kraken_GetCrc(src, qhdr.compressed_size) & 0xFFFFFF) != qhdr.checksum)
 		return false;
 
 	if (qhdr.compressed_size == dst_bytes_left) {
@@ -2792,11 +2727,9 @@ bool Kraken_DecodeStep(struct KrakenDecoder *dec,
 	}
 
 	if (dec->hdr.decoder_type == 6) {
-		n = Kraken_DecodeQuantum(dst_start + offset, dst_start + offset + dst_bytes_left, dst_start,
-			src, src + qhdr.compressed_size,
-			dec->scratch, dec->scratch + dec->scratch_size);
-	}
-	else {
+		n = Kraken_DecodeQuantum(dst_start + offset, dst_start + offset + dst_bytes_left, dst_start, src,
+								 src + qhdr.compressed_size, dec->scratch, dec->scratch + dec->scratch_size);
+	} else {
 		return false;
 	}
 
@@ -2850,4 +2783,3 @@ bool arg_stdout, arg_force, arg_quiet, arg_dll;
 int arg_compressor = kCompressor_Kraken, arg_level = 5;
 char arg_direction;
 char *verifyfolder;
-
